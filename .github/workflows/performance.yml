@@ -1,0 +1,65 @@
+name: TrafficFlow Performance Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Number of measured request iterations per endpoint'
+        required: false
+        default: '300'
+      concurrency:
+        description: 'Concurrency worker thread count'
+        required: false
+        default: '5'
+
+permissions:
+  contents: read
+
+jobs:
+  performance-benchmarks:
+    name: Performance Benchmark Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run performance benchmark engine
+        env:
+          PYTHONPATH: backend
+        run: |
+          python backend/perf_tests/benchmark.py --iterations ${{ github.event.inputs.iterations || '300' }} --concurrency ${{ github.event.inputs.concurrency || '5' }} --output-dir backend/perf_reports
+
+      - name: Run automated pytest performance suite
+        env:
+          PYTHONPATH: backend
+        run: |
+          python -m pytest backend/perf_tests -v
+
+      - name: Publish performance report to GitHub Step Summary
+        if: always()
+        run: |
+          if [ -f backend/perf_reports/performance_report.md ]; then
+            cat backend/perf_reports/performance_report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-reports
+          path: backend/perf_reports/
+          retention-days: 30
