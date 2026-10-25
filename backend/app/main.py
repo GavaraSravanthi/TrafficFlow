@@ -17,11 +17,13 @@ app = FastAPI(
 )
 
 # CORS configuration allowing Vite dev server
+# CORS configuration for local development and deployed frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://trafficflow-p8z2.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
